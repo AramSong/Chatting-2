@@ -1,0 +1,121 @@
+<% if user_signed_in? %>
+  <p><%= current_user.email %> | <%=link_to 'log_out',destroy_user_session_path %> </p>
+<% else %>
+  <%= link_to 'link_to' , new_user_session_path %>
+<% end %>
+<hr>
+
+<h1>Chat Rooms</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th>방제</th>
+      <th>인원</th>
+      <th>방장</th>
+      <th colspan="3"></th>
+      <th colspan="3"></th>
+      <th colspan="3"></th>
+    </tr>
+  </thead>
+
+  <tbody class="chat_room_list">
+    <% @chat_rooms.reverse.each do |chat_room| %>
+      <tr class= "room_info<%=chat_room.id %>">
+        <td><%= chat_room.title %></td>
+        <td><span class="current<%=chat_room.id %>"><%= chat_room.admissions.size%></span>&nbsp;/&nbsp;<%= chat_room.max_count %></td>
+        <td><%= chat_room.master_id %></td>
+        <td><%= link_to 'Show', chat_room %></td>
+        <td><%= link_to 'Edit', edit_chat_room_path(chat_room.id) %></td>
+        <td><%= link_to 'Destroy', chat_room, method: 'delete'%></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<br>
+
+<%= link_to 'New Chat Room', new_chat_room_path %>
+
+
+<script>
+  $(document).on('ready',function(){
+    // 방이 만들어졌을 때, 방에 대한 데이터를 받아서
+    // 방 목록에 추가해주는 function
+    
+    function room_created(data){
+      $('.chat_room_list').prepend(`
+      <tr>
+        <td>${data.title}</td>
+        <td><span class="current${data.id}">&nbsp;0</span>&nbsp;/${data.max_count}</td>
+        <td>${data.master_id}</td>
+        <td><a href="/chat_rooms/${data.id}">Show</a></td>
+        <td><a href="/chat_rooms/${data.id}">Edit</a></td>
+        <td><a href="/chat_rooms/${data.id}">Destroy</a></td>
+      </tr>`);
+      alert("방이 추가되었습니다.");
+    }
+    
+    function room_updated(data){
+      alert("방이 수정되었습니다.");
+       $(`.room_info${chat_room.id}`).append(`
+      <tr>
+        <td>${data.title}</td>
+        <td><span class="current${data.id}">&nbsp;0</span>&nbsp;/${data.max_count}</td>
+        <td>${data.master_id}</td>
+        <td><a href="/chat_rooms/${data.id}">Show</a></td>
+        <td><a href="/chat_rooms/${data.id}">Edit</a></td>
+        <td><a href="/chat_rooms/${data.id}">Destroy</a></td>
+      </tr>`);
+    }
+    
+    function room_destroyed(data){
+      $(`.room_info${chat_room.id}`).remove();
+      alert("방이 삭제되었습니다.");
+      
+    }
+    
+    function user_joined(data){
+      var current =$(`.current${data.chat_room_id}`);
+      current.text(parseInt(current.text()) + 1);
+    }
+    
+    function user_exit(data) {
+      var current =$(`.current${data.chat_room_id}`);
+      current.text(parseInt(current.text()) - 1);
+    }
+    
+    var pusher = new Pusher('<%= ENV["pusher_key"] %>', {
+      cluster: "<%= ENV["pusher_cluster"] %>",
+      encrypted: true
+    });
+
+    var channel = pusher.subscribe('chat_room');
+    channel.bind('create', function(data) {
+      console.log(data);
+      room_created(data);
+      //location.reload();
+    });
+    
+    channel.bind('update',function(data){
+        console.log(data);
+        room_updated(data);
+    });
+    
+    channel.bind('destroy',function(data){
+        console.log(data);
+        room_destroyed(data);
+        //location.reload();
+    });
+    
+    channel.bind('join',function(data){
+      console.log(data);
+      user_joined(data);
+    });
+    
+    channel.bind('exit',function(data){
+      console.log(data);
+      user_exit(data);
+    });
+  });
+</script>
